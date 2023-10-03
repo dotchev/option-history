@@ -1,6 +1,9 @@
+import os
+import pickle
 import sys
 from datetime import date, timedelta
 from itertools import pairwise
+
 from polygon import RESTClient
 
 client = RESTClient()  # POLYGON_API_KEY environment variable is used
@@ -32,7 +35,7 @@ def fetch_stock_history(symbol, from_date, to_date):
         if a.date.isoweekday() > next_a.date.isoweekday():
             h.append(a)
     Friday = 5
-    last_a = a[-1]
+    last_a = aggs[-1]
     if last_a.date.isoweekday() == Friday:
         h.append(a)
     return h
@@ -45,7 +48,7 @@ def fetch_call_options(symbol, buy_date, stock_price, expiration_date):
         expiration_date=expiration_date,
         as_of=buy_date,
         strike_price_gte=stock_price,
-        strike_price_lte=stock_price * 1.2)
+        strike_price_lte=stock_price * 1.10)
     call_options = []
     for contract in call_contracts:
         option_history = list(client.list_aggs(
@@ -62,6 +65,12 @@ def fetch_call_options(symbol, buy_date, stock_price, expiration_date):
         raise Exception(
             f'No call contracts for {symbol} with expiration on {expiration_date}')
     return call_options
+
+
+def save_data(symbol, data):
+    os.makedirs('data', exist_ok=True)
+    with open(f'data/{symbol}.pickle', 'wb') as f:
+        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def main():
@@ -85,6 +94,7 @@ def main():
         history.append(WeekData(next, call_options))
         print(f'{next.date} {next.close} {len(call_options)} strikes')
     print(f'{len(history)} weeks')
+    save_data(symbol, history)
 
 
 main()
