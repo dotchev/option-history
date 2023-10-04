@@ -1,8 +1,9 @@
 import os
 import pickle
 import sys
-from datetime import date, timedelta
+from datetime import date
 from itertools import pairwise
+from statistics import quantiles
 
 from polygon import RESTClient
 
@@ -41,14 +42,14 @@ def fetch_stock_history(symbol, from_date, to_date):
     return h
 
 
-def fetch_call_options(symbol, buy_date, stock_price, expiration_date):
+def fetch_call_options(symbol, buy_date, stock_price, expiration_date, max_strike):
     call_contracts = client.list_options_contracts(
         symbol,
         contract_type='call',
         expiration_date=expiration_date,
         as_of=buy_date,
         strike_price_gte=stock_price,
-        strike_price_lte=stock_price * 1.10)
+        strike_price_lte=max_strike)
     call_options = []
     for contract in call_contracts:
         option_history = list(client.list_aggs(
@@ -88,9 +89,18 @@ def main():
 
     history = []
     stock_history = fetch_stock_history(symbol, from_date, to_date)
+    stock_change_quantiles = quantiles(
+        [n.close / p.close for p, n in pairwise(stock_history)],
+        n=10)
+    print('Stock weekly change quantiles:', stock_change_quantiles)
+    strike_range = stock_change_quantiles[-1]
     for prev, next in pairwise(stock_history):
         call_options = fetch_call_options(
-            symbol, prev.date, prev.close, next.date)
+            symbol,
+            buy_date=prev.date,
+            stock_price=prev.close,
+            expiration_date=next.date,
+            max_strike=prev.close * strike_range)
         history.append(WeekData(next, call_options))
         print(f'{next.date} {next.close} {len(call_options)} strikes')
     print(f'{len(history)} weeks')
