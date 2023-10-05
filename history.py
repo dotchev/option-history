@@ -7,20 +7,10 @@ from statistics import quantiles
 
 from polygon import RESTClient
 
+from model import OptionData, WeekData
+
+
 client = RESTClient()  # POLYGON_API_KEY environment variable is used
-
-
-class WeekData:
-    def __init__(self, stock_data, call_options):
-        self.stock_data = stock_data
-        self.call_options = call_options
-
-
-class OptionData:
-    def __init__(self, contract, history):
-        self.contract = contract
-        self.history = history
-        self.profit_ratio = history[1].close / history[0].close - 1
 
 
 def fetch_stock_history(symbol, from_date, to_date):
@@ -107,4 +97,5 @@ def main():
     save_data(symbol, history)
 
 
-main()
+if __name__ == "__main__":
+    main()
