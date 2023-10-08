@@ -7,7 +7,7 @@ from statistics import quantiles
 
 from polygon import RESTClient
 
-from model import OptionData, WeekData
+from model import OptionData, WeekData, save_data
 
 
 client = RESTClient()  # POLYGON_API_KEY environment variable is used
@@ -58,12 +58,6 @@ def fetch_call_options(symbol, buy_date, stock_price, expiration_date, max_strik
     return call_options
 
 
-def save_data(symbol, data):
-    os.makedirs('data', exist_ok=True)
-    with open(f'data/{symbol}.pickle', 'wb') as f:
-        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-
 def main():
     if len(sys.argv) < 2:
         print('Stock symbol expected as argument', file=sys.stderr)
@@ -91,6 +85,7 @@ def main():
             stock_price=prev.close,
             expiration_date=next.date,
             max_strike=prev.close * strike_range)
+        next.prev = prev
         history.append(WeekData(next, call_options))
         print(f'{next.date} {next.close} {len(call_options)} strikes')
     print(f'{len(history)} weeks')

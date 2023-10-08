@@ -1,12 +1,19 @@
+import pickle
+import os
+
+
 class WeekData:
-    def __init__(self, stock_data, call_options):
-        self.stock_data = stock_data
+    def __init__(self, stock, call_options):
+        self.stock = stock
         self.call_options = call_options
 
     def print(self):
-        print(self.stock_data.date, self.stock_data.close)
+        print(self.stock.date, self.stock.close)
         for c in self.call_options:
             print(c)
+
+    def __str__(self):
+        return str(self.stock.date)
 
 
 class OptionData:
@@ -20,3 +27,14 @@ class OptionData:
 
     def __str__(self):
         return f'{self.contract.strike_price}\t{self.history[0].close}\t{self.history[1].close}\t({self.profit_ratio:.2f})'
+
+
+def load_data(symbol):
+    with open(f'data/{symbol}.pickle', 'rb') as f:
+        return pickle.load(f)
+
+
+def save_data(symbol, data):
+    os.makedirs('data', exist_ok=True)
+    with open(f'data/{symbol}.pickle', 'wb') as f:
+        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
