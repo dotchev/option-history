@@ -1,7 +1,7 @@
 import pickle
 import os
 from itertools import pairwise
-
+from datetime import date
 from polygon.rest.models import TickerDetails, OptionsContract, Agg
 
 
@@ -19,7 +19,7 @@ class OptionData:
         return self.history[-1].close / self.history[0].close - 1
 
     def __str__(self):
-        return f'{self.strike_price}\t{self.history[0].close}\t{self.history[1].close}\t({self.profit_ratio:.2f})'
+        return f'{self.strike_price}\t{self.history[0].close}\t{self.history[-1].close}\t({self.profit_ratio:+.0%})'
 
 
 class WeekData:
@@ -36,6 +36,10 @@ class WeekData:
         return f'{self.stock.date} {self.stock.close} {len(self.call_options)} strikes'
 
     @property
+    def date(self) -> date:
+        return self.stock.date
+
+    @property
     def min_strike_gap(self) -> float:
         return min(abs(a-b)/self.stock.prev.close
                    for a, b in pairwise(c.strike_price for c in self.call_options))
@@ -45,6 +49,13 @@ class WeekData:
         return max(abs(a-b)/self.stock.prev.close
                    for a, b in pairwise(self.stock.prev.close,
                                         *(c.strike_price for c in self.call_options)))
+
+    def find_strike(self, strike: float):
+        best = self.call_options[0]
+        for c in self.call_options[1:]:
+            if abs(c.strike_price-strike) < abs(best.strike_price-strike):
+                best = c
+        return best
 
 
 class History:

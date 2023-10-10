@@ -5,14 +5,6 @@ import pickle
 from model import OptionData, WeekData, History, load_history
 
 
-def find_closest_call(call_options, strike_target):
-    best = call_options[0]
-    for c in call_options[1:]:
-        if abs(c.strike_price-strike_target) < abs(best.strike_price-strike_target):
-            best = c
-    return best
-
-
 def main():
     if len(sys.argv) < 2:
         print('Stock symbol expected as argument', file=sys.stderr)
@@ -31,8 +23,7 @@ def main():
         profit = 0
         positive = 0
         for w in history.week_data:
-            call = find_closest_call(w.call_options,
-                                     strike_target=w.stock.prev.close * strike_mul)
+            call = w.find_strike(w.stock.prev.close * strike_mul)
             profit += call.profit_ratio
             if call.profit_ratio > 0:
                 positive += 1
