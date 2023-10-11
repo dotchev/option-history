@@ -15,11 +15,23 @@ class OptionData:
         return self.contract.strike_price
 
     @property
+    def buy_price(self):
+        return self.history[0].close
+
+    @property
+    def sell_price(self):
+        return self.history[-1].close
+
+    @property
     def profit_ratio(self) -> float:
-        return self.history[-1].close / self.history[0].close - 1
+        return self.sell_price / self.buy_price - 1
+
+    @property
+    def leverage(self) -> float:
+        return self.strike_price / self.buy_price
 
     def __str__(self):
-        return f'{self.strike_price}\t{self.history[0].close}\t{self.history[-1].close}\t({self.profit_ratio:+.0%})'
+        return f'{self.strike_price}\t{self.buy_price}\t{self.sell_price}\t({self.profit_ratio:+.0%})'
 
 
 class WeekData:
@@ -80,6 +92,10 @@ class History:
     @property
     def max_strike_gap(self) -> float:
         return max(w.min_strike_gap for w in self.week_data)
+
+    @property
+    def all_calls(self):
+        return (c for w in self.week_data for c in w.call_options)
 
 
 def load_history(symbol) -> History:

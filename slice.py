@@ -28,7 +28,7 @@ def main():
         stock_profit = w.stock.close / stock_start_price - 1
         print(f'{w.date}\t'
               f'{w.stock.close} ({w.stock.close/w.stock.prev.close-1:+.2%} {stock_profit:+.0%})\t'
-              f'{call.strike_price} ({actual_strike_gap:+.2%} x{call.strike_price/call.history[0].close:.0f})\t'
+              f'{call.strike_price} ({actual_strike_gap:+.2%} x{call.strike_price/call.buy_price:.0f})\t'
               f'{call.profit_ratio:+.2%} ({option_profit:+.0%})')
     print(f'average profit {option_profit/weeks:.1%}\t'
           f'positive {option_positive/weeks:.1%}')
