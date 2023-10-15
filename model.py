@@ -2,7 +2,7 @@ import pickle
 import os
 from itertools import pairwise
 from datetime import date
-from polygon.rest.models import TickerDetails, OptionsContract, Agg
+from polygon.rest.models import TickerDetails, OptionsContract, Agg, Split
 
 
 class OptionData:
@@ -75,15 +75,23 @@ class History:
                  symbol: str,
                  strike_range: float,
                  week_data: list[WeekData],
-                 ticker_details: TickerDetails):
+                 ticker_details: TickerDetails,
+                 splits: list[Split]):
         self.symbol = symbol
         self.strike_range = strike_range
         self.week_data = week_data
         self.ticker_details = ticker_details
+        self.splits = splits
 
     def __str__(self):
         total_contracts = sum(len(w.call_options) for w in self.week_data)
-        return f'{self.symbol} {len(self.week_data)} weeks {total_contracts} contracts'
+        first_date = self.week_data[0].date
+        last_date = self.week_data[-1].date
+        return (f'{self.symbol} '
+                f'({first_date}:{last_date}) '
+                f'{len(self.week_data)} weeks '
+                f'{total_contracts} contracts')
+        # f'{len(self.splits)} splits')
 
     @property
     def min_strike_gap(self) -> float:

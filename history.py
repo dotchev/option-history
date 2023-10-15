@@ -143,7 +143,7 @@ def main():
         w = WeekData(next, call_options)
         print(w)
         history.append(w)
-    h = History(symbol, strike_range, history, ticker_details)
+    h = History(symbol, strike_range, history, ticker_details, splits)
     save_history(h)
     print(h)
 
