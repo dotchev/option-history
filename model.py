@@ -63,22 +63,20 @@ class WeekData:
                                         *(c.strike_price for c in self.call_options)))
 
     def find_strike(self, strike: float):
-        best = self.call_options[0]
-        for c in self.call_options[1:]:
-            if abs(c.strike_price-strike) < abs(best.strike_price-strike):
-                best = c
-        return best
+        return min(self.call_options, key=lambda c: abs(c.strike_price-strike))
+
+    def find_lever(self, lever: float):
+        return min(self.call_options,
+                   key=lambda c: c.leverage / lever if c.leverage > lever else lever / c.leverage)
 
 
 class History:
     def __init__(self,
                  symbol: str,
-                 strike_range: float,
                  week_data: list[WeekData],
                  ticker_details: TickerDetails,
                  splits: list[Split]):
         self.symbol = symbol
-        self.strike_range = strike_range
         self.week_data = week_data
         self.ticker_details = ticker_details
         self.splits = splits
@@ -95,11 +93,11 @@ class History:
 
     @property
     def min_strike_gap(self) -> float:
-        return min(w.min_strike_gap for w in self.week_data)
+        return min(w.min_strike_gap for w in self.week_data if len(w.call_options) > 1)
 
     @property
     def max_strike_gap(self) -> float:
-        return max(w.min_strike_gap for w in self.week_data)
+        return max(w.max_strike_gap for w in self.week_data)
 
     @property
     def all_calls(self):
@@ -113,5 +111,7 @@ def load_history(symbol) -> History:
 
 def save_history(h: History):
     os.makedirs('data', exist_ok=True)
-    with open(f'data/{h.symbol}.pickle', 'wb') as f:
+    file_path = f'data/{h.symbol}.pickle'
+    with open(file_path, 'wb') as f:
         pickle.dump(h, f, protocol=pickle.HIGHEST_PROTOCOL)
+    print(f'History saved in {file_path}')

@@ -22,8 +22,11 @@ def list_stock_history(symbol, from_date, to_date):
         adjusted=False))
     for a in aggs:
         a.date = date.fromtimestamp(a.timestamp/1000)
-    h = list[Agg]
+    h = list[Agg]()
     for a, next_a in pairwise(aggs):
+        if a.date >= next_a.date:
+            raise Exception(
+                f'bad stock history order: {a.date} >= {next_a.date}')
         if a.date.isoweekday() > next_a.date.isoweekday():
             h.append(a)
     Friday = 5
@@ -34,6 +37,10 @@ def list_stock_history(symbol, from_date, to_date):
 
 
 def check_option_consistency(contract, option_history, prev_week, next_week):
+    for p, n in pairwise(option_history):
+        if p.date >= n.date:
+            raise Exception(
+                f'bad history order for contract {contract.ticker}: {p.date} >= {n.date}')
     if len(option_history) < 2:
         print(
             f'{contract.ticker}: history too short: {len(option_history)} - skip contract')
@@ -42,11 +49,13 @@ def check_option_consistency(contract, option_history, prev_week, next_week):
     option_end = option_history[-1]
     if option_start.date != prev_week.date:
         print(
-            f'{contract.ticker}: history starts on {option_start.date} expected {prev_week.date} - skip contract')
+            f'{contract.ticker}: history starts on {option_start.date} '
+            f'expected {prev_week.date} - skip contract')
         return False
     if option_end.date != next_week.date:
         print(
-            f'{contract.ticker}: history ends on {option_end.date} expected {next_week.date} - skip contract')
+            f'{contract.ticker}: history ends on {option_end.date} '
+            f'expected {next_week.date} - skip contract')
         return False
     stock_delta = max(0, next_week.close - contract.strike_price)
     if abs(stock_delta - option_end.close) > 2 and \
@@ -58,15 +67,18 @@ def check_option_consistency(contract, option_history, prev_week, next_week):
     return True
 
 
-def list_call_options(symbol, prev_week, next_week, max_strike):
-    call_contracts = client.list_options_contracts(
+def list_call_options(symbol: str, prev_week: Agg, next_week: Agg):
+    call_contracts = list(client.list_options_contracts(
         symbol,
         contract_type='call',
         expiration_date=next_week.date,
         as_of=prev_week.date,
-        strike_price_gte=prev_week.close,
-        strike_price_lte=max_strike)
-    call_options = []
+        strike_price_gte=prev_week.close))
+    for p, n in pairwise(call_contracts):
+        if p.strike_price >= n.strike_price:
+            raise Exception(
+                f'bad contract order: strike price {p.strike_price} >= {n.strike_price}')
+    call_options = list[OptionData]()
     for contract in call_contracts:
         option_history = list(client.list_aggs(
             contract.ticker,
@@ -75,8 +87,12 @@ def list_call_options(symbol, prev_week, next_week, max_strike):
             adjusted=False))
         for a in option_history:
             a.date = date.fromtimestamp(a.timestamp/1000)
-        if check_option_consistency(contract, option_history, prev_week, next_week):
-            call_options.append(OptionData(contract, option_history))
+        if not check_option_consistency(contract, option_history, prev_week, next_week):
+            continue
+        opt = OptionData(contract, option_history)
+        call_options.append(opt)
+        if contract.strike_price > next_week.close and opt.sell_price < 0.011:
+            break
     return call_options
 
 
@@ -118,12 +134,6 @@ def main():
 
     history = []
     stock_history = list_stock_history(symbol, from_date, to_date)
-    stock_change_quantiles = quantiles(
-        [n.close / p.close for p, n in pairwise(stock_history)],
-        n=10)
-    print('Stock weekly gain quantiles:', ', '.join([
-          f'{q:.02f}' for q in stock_change_quantiles]))
-    strike_range = stock_change_quantiles[-1]
     for prev, next in pairwise(stock_history):
         split = stock_split(splits, prev, next)
         if split:
@@ -133,8 +143,7 @@ def main():
         call_options = list_call_options(
             symbol,
             prev_week=prev,
-            next_week=next,
-            max_strike=prev.close * strike_range)
+            next_week=next)
         if len(call_options) == 0:
             print(
                 f'No call contracts for {symbol} that expire on {next.date}')
@@ -143,7 +152,7 @@ def main():
         w = WeekData(next, call_options)
         print(w)
         history.append(w)
-    h = History(symbol, strike_range, history, ticker_details, splits)
+    h = History(symbol, history, ticker_details, splits)
     save_history(h)
     print(h)
 
