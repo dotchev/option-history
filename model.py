@@ -2,25 +2,41 @@ import pickle
 import os
 from itertools import pairwise
 from datetime import date
+from statistics import median
 from polygon.rest.models import TickerDetails, OptionsContract, Agg, Split
 
 
 class OptionData:
-    def __init__(self, contract: OptionsContract, history: list[Agg]):
+    def __init__(self, contract: OptionsContract, history: list[Agg], stock_start_day: Agg, stock_end_day: Agg):
         self.contract = contract
         self.history = history
+        self.stock_start_day = stock_start_day
+        self.stock_end_day = stock_end_day
 
     @property
     def strike_price(self):
         return self.contract.strike_price
 
     @property
+    def expiration_date(self):
+        return self.contract.expiration_date
+
+    @property
     def buy_price(self):
-        return self.history[0].close
+        return self.history[0].close if self.history[0].date == self.stock_start_day.date else self.history[0].open
 
     @property
     def sell_price(self):
-        return self.history[-1].close
+        # Return the intrinsic value as there might be no recent transactions reflecting the actual price
+        return max(0, self.stock_end_day.close - self.strike_price)
+
+    @property
+    def max_price(self):
+        return max([a.high for a in self.history[1:]]) if len(self.history) > 1 else None
+
+    @property
+    def daily_tx(self):
+        return median([a.transactions for a in self.history])
 
     @property
     def profit_ratio(self) -> float:
@@ -32,7 +48,6 @@ class OptionData:
 
     def __str__(self):
         return f'{self.strike_price}\t{self.buy_price}\t{self.sell_price}\t({self.profit_ratio:+.0%})'
-
 
 class WeekData:
     def __init__(self, stock: Agg, call_options: list[OptionData]):
